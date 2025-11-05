@@ -6,6 +6,9 @@ import 'package:flutter/foundation.dart';
 import '../synthesis/engines/wavetable_engine.dart';
 import '../synthesis/engines/granular_engine.dart';
 import '../synthesis/modulation/modulation_matrix.dart';
+import '../audio/intelligent_audio_analyzer.dart';
+import '../audio/smart_audio_visual_mapper.dart';
+import '../audio/effects_chain.dart';
 
 /// Voice state for polyphonic synthesis
 class Voice {
@@ -55,6 +58,11 @@ class EnhancedSynthEngine extends ChangeNotifier {
   // Modulation system
   late ModulationMatrix modulationMatrix;
 
+  // Phase 2: Intelligent audio analysis and effects
+  late IntelligentAudioAnalyzer audioAnalyzer;
+  late SmartAudioVisualMapper audioVisualMapper;
+  late EffectsChain effectsChain;
+
   // Voice management
   final List<Voice> activeVoices = [];
 
@@ -98,11 +106,21 @@ class EnhancedSynthEngine extends ChangeNotifier {
     granularEngine = GranularEngine();
     modulationMatrix = ModulationMatrix();
 
+    // Phase 2: Initialize audio analysis and effects
+    audioAnalyzer = IntelligentAudioAnalyzer();
+    audioVisualMapper = SmartAudioVisualMapper();
+    effectsChain = EffectsChain(sampleRate: sampleRate);
+
+    // Configure effects chain
+    effectsChain.filter.setCutoff(filterCutoff);
+    effectsChain.filter.setResonance(filterResonance);
+    effectsChain.reverb.setMix(reverbMix);
+
     // Set up default modulations
     _setupDefaultModulations();
 
     _isInitialized = true;
-    debugPrint('✅ EnhancedSynthEngine initialized');
+    debugPrint('✅ EnhancedSynthEngine initialized with Phase 2 features');
   }
 
   void _setupDefaultModulations() {
@@ -271,13 +289,20 @@ class EnhancedSynthEngine extends ChangeNotifier {
       output /= activeVoices.length;
     }
 
-    // Apply filter (simplified)
-    output = _applyFilter(output);
+    // Phase 2: Apply professional effects chain
+    output = effectsChain.process(output);
 
     // Apply master volume
     output *= masterVolume;
 
-    // Update audio analysis
+    // Phase 2: Collect samples for intelligent analysis
+    _analysisBuffer.add(output);
+    if (_analysisBuffer.length >= 512) {
+      audioAnalyzer.analyze(_analysisBuffer);
+      _analysisBuffer.clear();
+    }
+
+    // Update legacy audio analysis
     _updateAudioAnalysis(output);
 
     // Clean up finished voices
@@ -302,14 +327,6 @@ class EnhancedSynthEngine extends ChangeNotifier {
     return [left, right];
   }
 
-  double _applyFilter(double input) {
-    // Simplified filter (proper implementation would use biquad filter)
-    final cutoffMod = modulationMatrix.getModulation(ModDestination.filterCutoff);
-    final modulatedCutoff = (filterCutoff + cutoffMod * 10000.0).clamp(20.0, 20000.0);
-
-    // Very basic filter simulation (placeholder)
-    return input;
-  }
 
   void _applyModulations() {
     // Apply modulations to synthesis parameters
@@ -335,11 +352,18 @@ class EnhancedSynthEngine extends ChangeNotifier {
     final newSize = (50.0 + grainSizeMod * 100.0).clamp(1.0, 500.0);
     granularEngine.setGrainSize(newSize);
 
-    // Filter parameters
+    // Phase 2: Apply modulations to effects
     final cutoffMod = modulationMatrix.getModulation(
       ModDestination.filterCutoff
     );
-    filterCutoff = (1000.0 + cutoffMod * 10000.0).clamp(20.0, 20000.0);
+    final modulatedCutoff = (filterCutoff + cutoffMod * 10000.0).clamp(20.0, 20000.0);
+    effectsChain.filter.setCutoff(modulatedCutoff);
+
+    final resonanceMod = modulationMatrix.getModulation(
+      ModDestination.filterResonance
+    );
+    final modulatedResonance = (filterResonance + resonanceMod * 0.5).clamp(0.1, 10.0);
+    effectsChain.filter.setResonance(modulatedResonance);
   }
 
   void _updateAudioAnalysis(double sample) {
@@ -373,6 +397,7 @@ class EnhancedSynthEngine extends ChangeNotifier {
   /// Set filter cutoff (20 - 20000 Hz)
   void setFilterCutoff(double value) {
     filterCutoff = value.clamp(20.0, 20000.0);
+    effectsChain.filter.setCutoff(filterCutoff);
     _notifyParameterUpdate('filterCutoff', filterCutoff / 20000.0);
     notifyListeners();
   }
@@ -380,6 +405,7 @@ class EnhancedSynthEngine extends ChangeNotifier {
   /// Set filter resonance (0.0 - 1.0)
   void setFilterResonance(double value) {
     filterResonance = value.clamp(0.0, 1.0);
+    effectsChain.filter.setResonance(filterResonance);
     _notifyParameterUpdate('filterResonance', filterResonance);
     notifyListeners();
   }
@@ -387,7 +413,53 @@ class EnhancedSynthEngine extends ChangeNotifier {
   /// Set reverb mix (0.0 - 1.0)
   void setReverbMix(double value) {
     reverbMix = value.clamp(0.0, 1.0);
+    effectsChain.reverb.setMix(reverbMix);
     _notifyParameterUpdate('reverbMix', reverbMix);
+    notifyListeners();
+  }
+
+  /// Phase 2: Set distortion amount
+  void setDistortionAmount(double value) {
+    distortionAmount = value.clamp(0.0, 1.0);
+    effectsChain.distortion.amount = distortionAmount;
+    effectsChain.distortionEnabled = distortionAmount > 0.0;
+    _notifyParameterUpdate('distortionAmount', distortionAmount);
+    notifyListeners();
+  }
+
+  /// Phase 2: Set delay time
+  void setDelayTime(double value) {
+    delayTime = value.clamp(0.001, 2.0);
+    effectsChain.delay.setDelayTime(delayTime);
+    _notifyParameterUpdate('delayTime', delayTime / 2.0);
+    notifyListeners();
+  }
+
+  /// Phase 2: Set delay feedback
+  void setDelayFeedback(double value) {
+    delayFeedback = value.clamp(0.0, 0.95);
+    effectsChain.delay.setFeedback(delayFeedback);
+    _notifyParameterUpdate('delayFeedback', delayFeedback);
+    notifyListeners();
+  }
+
+  /// Phase 2: Toggle effect
+  void toggleEffect(String effectName, bool enabled) {
+    switch (effectName) {
+      case 'filter':
+        effectsChain.filterEnabled = enabled;
+        break;
+      case 'distortion':
+        effectsChain.distortionEnabled = enabled;
+        break;
+      case 'delay':
+        effectsChain.delayEnabled = enabled;
+        break;
+      case 'reverb':
+        effectsChain.reverbEnabled = enabled;
+        break;
+    }
+    debugPrint('🎛️ Effect $effectName: ${enabled ? "ON" : "OFF"}');
     notifyListeners();
   }
 
@@ -465,6 +537,51 @@ class EnhancedSynthEngine extends ChangeNotifier {
         ModDestination.visualMorphIntensity
       ),
     };
+  }
+
+  /// Phase 2: Get intelligent audio-visual parameters with musical awareness
+  Map<String, double> getIntelligentVisualParameters() {
+    // Get audio features from intelligent analyzer
+    final audioFeatures = audioAnalyzer.getFeatures();
+
+    // Map to visual parameters with musical intelligence
+    final visualParams = audioVisualMapper.map(audioFeatures);
+
+    // Combine with manual modulations
+    final manual = getVisualizerParameters();
+
+    // Merge intelligent and manual parameters
+    return {
+      ...visualParams.toMap(),
+      ...manual,
+      // Audio features for advanced visualization
+      'spectralCentroid': audioFeatures.spectralCentroid,
+      'spectralFlux': audioFeatures.spectralFlux,
+      'onsetStrength': audioFeatures.onsetStrength,
+      'harmonicity': audioFeatures.harmonicity,
+      'lowEnergy': audioFeatures.lowEnergy,
+      'midEnergy': audioFeatures.midEnergy,
+      'highEnergy': audioFeatures.highEnergy,
+      'mappingMode': audioVisualMapper.mode.index.toDouble(),
+    };
+  }
+
+  /// Get audio features for UI display
+  AudioFeatures getAudioFeatures() {
+    return audioAnalyzer.getFeatures();
+  }
+
+  /// Set audio-visual mapping mode
+  void setMappingMode(MappingMode mode) {
+    audioVisualMapper.setMode(mode);
+    debugPrint('🎨 Mapping mode: ${mode.name}');
+    notifyListeners();
+  }
+
+  /// Set mapping smoothing factor
+  void setMappingSmoothness(double smoothness) {
+    audioVisualMapper.setSmoothingFactor(smoothness);
+    notifyListeners();
   }
 
   /// Get current active voice count

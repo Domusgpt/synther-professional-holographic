@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../core/enhanced_synth_engine.dart';
 import '../visualization/vib34d_sdk_wrapper.dart';
 import '../visualization/quaternion_sensor_bridge.dart';
+import '../audio/smart_audio_visual_mapper.dart';
 
 /// Main application state
 class SynthAppState extends ChangeNotifier {
@@ -21,8 +22,13 @@ class SynthAppState extends ChangeNotifier {
   // UI state
   bool showModulationMatrix = false;
   bool showVisualizer = true;
+  bool showAudioAnalysis = false;  // Phase 2: Show audio features
   VisualizationEngine currentVisualizerEngine = VisualizationEngine.polychora;
   String currentPreset = 'Init';
+
+  // Phase 2: Audio-visual mapping state
+  bool useIntelligentMapping = true;  // Use intelligent audio-reactive mapping
+  MappingMode currentMappingMode = MappingMode.adaptive;
 
   // Performance monitoring
   double audioLatency = 0.0;
@@ -105,9 +111,11 @@ class SynthAppState extends ChangeNotifier {
   // ============================================================
 
   void _onParameterUpdate(Map<String, double> params) {
-    // Forward parameter updates to visualizer
+    // Phase 2: Forward intelligent or manual parameters to visualizer
     if (_isVisualizerReady) {
-      final visualParams = synthEngine.getVisualizerParameters();
+      final visualParams = useIntelligentMapping
+          ? synthEngine.getIntelligentVisualParameters()
+          : synthEngine.getVisualizerParameters();
       visualizer.updateAudioParameters(visualParams);
     }
   }
@@ -239,6 +247,47 @@ class SynthAppState extends ChangeNotifier {
   /// Toggle modulation matrix visibility
   void toggleModulationMatrix() {
     showModulationMatrix = !showModulationMatrix;
+    notifyListeners();
+  }
+
+  /// Phase 2: Toggle audio analysis display
+  void toggleAudioAnalysis() {
+    showAudioAnalysis = !showAudioAnalysis;
+    notifyListeners();
+  }
+
+  /// Phase 2: Toggle intelligent mapping
+  void toggleIntelligentMapping() {
+    useIntelligentMapping = !useIntelligentMapping;
+    debugPrint('🎨 Intelligent mapping: ${useIntelligentMapping ? "ON" : "OFF"}');
+    notifyListeners();
+  }
+
+  /// Phase 2: Set mapping mode
+  void setMappingMode(MappingMode mode) {
+    currentMappingMode = mode;
+    synthEngine.setMappingMode(mode);
+    notifyListeners();
+  }
+
+  /// Phase 2: Control effects
+  void setDistortionAmount(double value) {
+    synthEngine.setDistortionAmount(value);
+    notifyListeners();
+  }
+
+  void setDelayTime(double value) {
+    synthEngine.setDelayTime(value);
+    notifyListeners();
+  }
+
+  void setDelayFeedback(double value) {
+    synthEngine.setDelayFeedback(value);
+    notifyListeners();
+  }
+
+  void toggleEffect(String effectName, bool enabled) {
+    synthEngine.toggleEffect(effectName, enabled);
     notifyListeners();
   }
 
