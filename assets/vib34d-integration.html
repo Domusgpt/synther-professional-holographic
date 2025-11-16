@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Vib34D XR Quaternion Visualizer</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000000;
+      font-family: 'Courier New', monospace;
+    }
+
+    #visualizer-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: radial-gradient(circle at center, #001020 0%, #000000 100%);
+    }
+
+    #status-overlay {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      color: #00FFFF;
+      font-size: 12px;
+      text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    .loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #00FFFF;
+      font-size: 14px;
+      letter-spacing: 4px;
+      text-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
+    }
+  </style>
+</head>
+<body>
+  <canvas id="visualizer-canvas"></canvas>
+  <div id="status-overlay"></div>
+  <div class="loading" id="loading-text">INITIALIZING VIB34D SDK...</div>
+
+  <script type="module">
+    // Vib34D XR Quaternion SDK Integration
+    // This demonstrates the integration pattern - replace with actual SDK import
+
+    console.log('🎨 Vib34D XR Quaternion Visualizer Initializing...');
+
+    const canvas = document.getElementById('visualizer-canvas');
+    const ctx = canvas.getContext('2d');
+    const statusOverlay = document.getElementById('status-overlay');
+    const loadingText = document.getElementById('loading-text');
+
+    // Resize canvas to match display size
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    // Visualization state
+    const state = {
+      rot4dXW: 0.0,
+      rot4dYW: 0.0,
+      rot4dZW: 0.0,
+      morphIntensity: 0.5,
+      audioReactive: true,
+      engine: 'polychora', // polychora, holographic, quantum, faceted
+
+      // Audio parameters
+      filterCutoff: 0.5,
+      grainDensity: 0.0,
+      wavetablePosition: 0.0,
+
+      // Sensor data
+      quaternion: { x: 0, y: 0, z: 0, w: 1 },
+
+      // Animation
+      time: 0,
+      autoRotate: true,
+    };
+
+    // Initialize SDK (simulated - replace with actual vib34d SDK)
+    async function initializeSDK() {
+      try {
+        // Simulated SDK initialization
+        // In real implementation, import and initialize vib34d SDK here:
+        // import { createAdaptiveSDK } from './vib34d-sdk/dist/adaptive-sdk.esm.js';
+        // window.sdk = createAdaptiveSDK({ ... });
+
+        console.log('✅ SDK Initialized (simulated)');
+        loadingText.style.display = 'none';
+
+        // Start animation loop
+        requestAnimationFrame(render);
+
+        return true;
+      } catch (error) {
+        console.error('❌ SDK Initialization failed:', error);
+        loadingText.textContent = 'SDK INITIALIZATION FAILED';
+        return false;
+      }
+    }
+
+    // Render 4D polytope projection (simplified visualization)
+    function render4DPolytope(time) {
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      const size = Math.min(canvas.width, canvas.height) * 0.3;
+
+      // Clear with fade effect
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Apply rotations
+      const rotX = state.rot4dXW + (state.autoRotate ? time * 0.0005 : 0);
+      const rotY = state.rot4dYW + (state.autoRotate ? time * 0.0007 : 0);
+      const rotZ = state.rot4dZW + (state.autoRotate ? time * 0.0003 : 0);
+
+      // Draw tesseract (hypercube) edges
+      const vertices4D = generateTesseractVertices();
+      const projected = vertices4D.map(v => project4Dto2D(v, rotX, rotY, rotZ, size));
+
+      // Draw edges with audio reactivity
+      const edgeColor = `rgba(0, ${Math.floor(255 * state.filterCutoff)}, 255, ${0.3 + state.grainDensity * 0.7})`;
+      ctx.strokeStyle = edgeColor;
+      ctx.lineWidth = 2;
+      ctx.shadowBlur = 20;
+      ctx.shadowColor = '#00FFFF';
+
+      // Tesseract edges
+      const edges = getTesseractEdges();
+      for (const [i, j] of edges) {
+        const p1 = projected[i];
+        const p2 = projected[j];
+
+        ctx.beginPath();
+        ctx.moveTo(centerX + p1.x, centerY + p1.y);
+        ctx.lineTo(centerX + p2.x, centerY + p2.y);
+        ctx.stroke();
+      }
+
+      // Draw vertices
+      ctx.fillStyle = `rgba(255, 0, 255, ${0.5 + state.morphIntensity * 0.5})`;
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = '#FF00FF';
+
+      for (const p of projected) {
+        ctx.beginPath();
+        ctx.arc(centerX + p.x, centerY + p.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // Generate tesseract vertices in 4D space
+    function generateTesseractVertices() {
+      const vertices = [];
+      for (let x = -1; x <= 1; x += 2) {
+        for (let y = -1; y <= 1; y += 2) {
+          for (let z = -1; z <= 1; z += 2) {
+            for (let w = -1; w <= 1; w += 2) {
+              vertices.push({ x, y, z, w });
+            }
+          }
+        }
+      }
+      return vertices;
+    }
+
+    // Get tesseract edges
+    function getTesseractEdges() {
+      const edges = [];
+      const vertices = generateTesseractVertices();
+
+      for (let i = 0; i < vertices.length; i++) {
+        for (let j = i + 1; j < vertices.length; j++) {
+          const v1 = vertices[i];
+          const v2 = vertices[j];
+          const diff = Math.abs(v1.x - v2.x) + Math.abs(v1.y - v2.y) +
+                      Math.abs(v1.z - v2.z) + Math.abs(v1.w - v2.w);
+          if (diff === 2) {
+            edges.push([i, j]);
+          }
+        }
+      }
+      return edges;
+    }
+
+    // Project 4D point to 2D with rotation
+    function project4Dto2D(v, rotX, rotY, rotZ, scale) {
+      // Apply 4D rotations
+      let { x, y, z, w } = rotate4D(v, rotX, rotY, rotZ);
+
+      // Perspective projection from 4D to 3D
+      const distance = 3.0;
+      const factor = distance / (distance - w);
+
+      x *= factor;
+      y *= factor;
+      z *= factor;
+
+      // Project 3D to 2D
+      const perspective = 2.0;
+      const scale2D = perspective / (perspective + z);
+
+      return {
+        x: x * scale * scale2D,
+        y: y * scale * scale2D,
+      };
+    }
+
+    // Rotate point in 4D space
+    function rotate4D(v, rotX, rotY, rotZ) {
+      let { x, y, z, w } = v;
+
+      // XW rotation
+      const cosX = Math.cos(rotX);
+      const sinX = Math.sin(rotX);
+      const tempX = x;
+      x = x * cosX - w * sinX;
+      w = tempX * sinX + w * cosX;
+
+      // YW rotation
+      const cosY = Math.cos(rotY);
+      const sinY = Math.sin(rotY);
+      const tempY = y;
+      y = y * cosY - w * sinY;
+      w = tempY * sinY + w * cosY;
+
+      // ZW rotation
+      const cosZ = Math.cos(rotZ);
+      const sinZ = Math.sin(rotZ);
+      const tempZ = z;
+      z = z * cosZ - w * sinZ;
+      w = tempZ * sinZ + w * cosZ;
+
+      return { x, y, z, w };
+    }
+
+    // Main render loop
+    function render(timestamp) {
+      state.time = timestamp;
+
+      // Render based on current engine
+      switch (state.engine) {
+        case 'polychora':
+          render4DPolytope(timestamp);
+          break;
+        default:
+          render4DPolytope(timestamp);
+      }
+
+      // Update status overlay
+      updateStatusOverlay();
+
+      requestAnimationFrame(render);
+    }
+
+    // Update status overlay
+    function updateStatusOverlay() {
+      statusOverlay.innerHTML = `
+        ENGINE: ${state.engine.toUpperCase()}<br>
+        ROT XW: ${state.rot4dXW.toFixed(2)}<br>
+        ROT YW: ${state.rot4dYW.toFixed(2)}<br>
+        ROT ZW: ${state.rot4dZW.toFixed(2)}<br>
+        MORPH: ${(state.morphIntensity * 100).toFixed(0)}%<br>
+        QUATERNION: (${state.quaternion.x.toFixed(2)}, ${state.quaternion.y.toFixed(2)}, ${state.quaternion.z.toFixed(2)}, ${state.quaternion.w.toFixed(2)})
+      `;
+    }
+
+    // Flutter communication bridge
+    window.updateAudioData = function(audioData) {
+      if (audioData) {
+        state.filterCutoff = audioData.cutoff || state.filterCutoff;
+        state.grainDensity = audioData.grainDensity || state.grainDensity;
+        state.wavetablePosition = audioData.wavetablePosition || state.wavetablePosition;
+      }
+    };
+
+    window.updateQuaternion = function(quaternion) {
+      if (quaternion) {
+        state.quaternion = quaternion;
+
+        // Convert quaternion to 4D rotations
+        const euler = quaternionToEuler(quaternion);
+        state.rot4dXW = euler.roll * 2.0;
+        state.rot4dYW = euler.pitch * 2.0;
+        state.rot4dZW = euler.yaw * 2.0;
+      }
+    };
+
+    window.set4DRotation = function(rotXW, rotYW, rotZW) {
+      state.rot4dXW = rotXW;
+      state.rot4dYW = rotYW;
+      state.rot4dZW = rotZW;
+    };
+
+    window.setMorphIntensity = function(intensity) {
+      state.morphIntensity = Math.max(0, Math.min(1, intensity));
+    };
+
+    window.switchEngine = function(engineName) {
+      state.engine = engineName;
+      console.log(`🔄 Switched to ${engineName} engine`);
+    };
+
+    // Convert quaternion to Euler angles
+    function quaternionToEuler(q) {
+      const { x, y, z, w } = q;
+
+      const sinr_cosp = 2 * (w * x + y * z);
+      const cosr_cosp = 1 - 2 * (x * x + y * y);
+      const roll = Math.atan2(sinr_cosp, cosr_cosp);
+
+      const sinp = 2 * (w * y - z * x);
+      const pitch = Math.abs(sinp) >= 1 ? Math.sign(sinp) * Math.PI / 2 : Math.asin(sinp);
+
+      const siny_cosp = 2 * (w * z + x * y);
+      const cosy_cosp = 1 - 2 * (y * y + z * z);
+      const yaw = Math.atan2(siny_cosp, cosy_cosp);
+
+      return { roll, pitch, yaw };
+    }
+
+    // Initialize on load
+    initializeSDK();
+
+    console.log('✅ Vib34D Integration Ready');
+    console.log('📡 Exposed methods: updateAudioData, updateQuaternion, set4DRotation, setMorphIntensity, switchEngine');
+  </script>
+</body>
+</html>

@@ -12,36 +12,46 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
-  
+
   # State management
   provider: ^6.1.2
-  
-  # Audio & Permissions
+
+  # Audio engines & synthesis
   permission_handler: ^11.4.0
-  
+  dart_melty_soundfont: ^2.0.0
+
   # UI & Animations
   flutter_animate: ^4.5.0
   glassmorphism: ^3.0.0
   flutter_shaders: ^0.1.2
-  
-  # WebView for 4D visualizer
+
+  # WebView for 4D visualizer & vib34d-sdk integration
   webview_flutter: ^4.9.0
-  
+  webview_flutter_web: ^0.2.2+4
+  webview_flutter_android: ^3.12.1
+  webview_flutter_wkwebview: ^3.9.4
+
+  # Sensors for quaternion-based XR
+  sensors_plus: ^3.1.0
+
   # File handling
   file_picker: ^8.0.0+1
-  
+
   # Math & utilities
   vector_math: ^2.1.4
-  
+  collection: ^1.18.0
+
   # Storage & Preferences
   shared_preferences: ^2.2.2
   path_provider: ^2.1.1
-  
+
   # HTTP & API
   http: ^1.1.0
-  
+
   # File I/O
   path: ^1.8.3
+
+  # Firebase suite
   firebase_core: ^3.13.1
   firebase_auth: ^5.5.4
   cloud_firestore: ^5.6.8
@@ -49,6 +59,9 @@ dependencies:
   firebase_analytics: ^11.4.6
   firebase_messaging: ^15.2.6
   cloud_functions: ^5.5.1
+
+  # Audio utilities
+  wav: ^1.0.0
 
 dev_dependencies:
   flutter_test:
